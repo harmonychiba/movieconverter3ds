@@ -1,0 +1,11 @@
+for linux:
+g++ -I`python -c 'from distutils.sysconfig import *; print get_python_inc()'` -DPIC -shared -fPIC -o movieconverter3ds.so pywrapper.cpp -lboost_python -lopencv_core -lopencv_imgproc -lopencv_highgui
+for mac:
+g++ -I`python -c 'from distutils.sysconfig import *; print get_python_inc()'` -DPIC -bundle -fPIC -o movieconverter3ds.so pywrapper.cpp -lboost_python -lopencv_core -lopencv_imgproc -lopencv_highgui -framework Python
+
+###use path to specify libraries###
+
+for linux:
+g++ -I`python -c 'from distutils.sysconfig import *; print get_python_inc()'` -DPIC -shared -fPIC -o movieconverter3ds.so pywrapper.cpp /usr/local/lib/libboost_python.so /usr/local/lib/libopencv_core.so /usr/local/lib/libopencv_imgproc.so /usr/local/lib/libopencv_highgui.so
+for mac:
+g++ -I`python -c 'from distutils.sysconfig import *; print get_python_inc()'` -DPIC -bundle -fPIC -o movieconverter3ds.so pywrapper.cpp /usr/local/lib/libboost_python.dylib /usr/local/lib/libopencv_core.dylib /usr/local/lib/libopencv_imgproc.dylib /usr/local/lib/libopencv_highgui.dylib -framework Python
