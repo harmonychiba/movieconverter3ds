@@ -9,11 +9,16 @@
 #include "Converter.h"
 
 void Converter::doDebug(int a_debug_mode){
-    cv::namedWindow("3DS Movie Converter Debug Window",CV_WINDOW_AUTOSIZE);
+    cv::namedWindow("3DS Movie Converter Debug Window",CV_WINDOW_NORMAL);
+    cv::resizeWindow("3DS Movie Converter Debug Window", 640, 480);
     debugging = true;
     debug_mode = a_debug_mode;
 }
 bool Converter::initialize(){
+    in_ul = cv::Point2f(0,0);
+    in_ur = cv::Point2f(0,0);
+    in_ll = cv::Point2f(0,0);
+    in_lr = cv::Point2f(0,0);
     if(input_file != "" && output_file != ""){
         capture.open(input_file);
         if(!capture.isOpened()){
@@ -26,10 +31,10 @@ bool Converter::initialize(){
         return false;
     }
 };
-void Converter::loadFile(std::string filename){
+void Converter::loadFile(const std::string &filename){
     input_file = filename;
 };
-void Converter::setOutputFilePath(std::string filename){
+void Converter::setOutputFilePath(const std::string &filename){
     output_file = filename;
 };
 void Converter::setOutputRectSize(int width, int height){
@@ -51,9 +56,14 @@ bool Converter::loadFrameImageAtFrame(int a_frame){
         int frame_count = (int)capture.get(CV_CAP_PROP_FRAME_COUNT);
         if(frame <= frame_count){
             capture.set(CV_CAP_PROP_POS_FRAMES, frame);
+            cv::Mat frame_image_src;
             capture >> frame_image;
+            frame_image.copyTo(frame_src);
+            cv::GaussianBlur(frame_image, frame_image, cv::Size(11,11), 10, 10);
             if(debugging && debug_mode == 0){
-                cv::imshow("3DS Movie Converter Debug Window", frame_image);
+                cv::Mat disp;
+                cv::resize(frame_image, disp, cv::Size(640,480));
+                cv::imshow("3DS Movie Converter Debug Window", disp);
                 cv::waitKey(1);
             }
             return true;
@@ -131,7 +141,23 @@ bool Converter::getRect(){
             cv::circle(pointed_image, lr_pos, 5, cv::Scalar(200,200,200), -1, CV_AA);
             cv::circle(pointed_image, lr_pos, 3, cv::Scalar(lr_data[0],lr_data[1],lr_data[2]),-1,CV_AA);
             cv::cvtColor(pointed_image, draw_image, CV_HSV2RGB);
+            cv::resize(draw_image, draw_image, cv::Size(640,480));
             cv::imshow("3DS Movie Converter Debug Window", draw_image);
+            cv::waitKey(1);
+        }
+        if(debugging && debug_mode == -2){
+            cv::Mat pointed_image;
+            //frame_image.copyTo(pointed_image);
+            cv::cvtColor(frame_image, pointed_image, CV_RGB2HSV);
+            cv::Mat draw_image;
+            cv::circle(pointed_image, in_ul, 5, cv::Scalar(200,200,200), -1, CV_AA);
+            cv::circle(pointed_image, in_ur, 5, cv::Scalar(200,200,200), -1, CV_AA);
+            cv::circle(pointed_image, in_ll, 5, cv::Scalar(200,200,200), -1, CV_AA);
+            cv::circle(pointed_image, in_lr, 5, cv::Scalar(200,200,200), -1, CV_AA);
+            cv::cvtColor(pointed_image, draw_image, CV_HSV2RGB);
+            cv::resize(draw_image, draw_image, cv::Size(640,480));
+            cv::imshow("3DS Movie Converter Debug Window", draw_image);
+            std::cout << in_ul.x << in_ul.y<<std::endl;
             cv::waitKey(1);
         }
         cv::Mat hsv_img;
@@ -140,48 +166,48 @@ bool Converter::getRect(){
         cv::split(hsv_img, singlechannels);
         cv::Mat ul_bin_img,ur_bin_img,ll_bin_img,lr_bin_img,hue1,hue2,saturation1,saturation2,value1,value2,hue,saturation,value,out1;
         
-        cv::threshold(singlechannels[0], hue1, (double)ul_data[0]-5, 255, CV_THRESH_BINARY);
-        cv::threshold(singlechannels[0], hue2, (double)ul_data[0]+5, 255, CV_THRESH_BINARY_INV);
-        cv::threshold(singlechannels[1], saturation1, (double)ul_data[1]-75, 255, CV_THRESH_BINARY);
-        cv::threshold(singlechannels[1], saturation2, (double)ul_data[1]+75, 255, CV_THRESH_BINARY_INV);
-        cv::threshold(singlechannels[2], value1, (double)ul_data[2]-75, 255, CV_THRESH_BINARY);
-        cv::threshold(singlechannels[2], value2, (double)ul_data[2]+75, 255, CV_THRESH_BINARY_INV);
+        cv::threshold(singlechannels[0], hue1, (double)ul_data[0]-8, 255, CV_THRESH_BINARY);
+        cv::threshold(singlechannels[0], hue2, (double)ul_data[0]+8, 255, CV_THRESH_BINARY_INV);
+        cv::threshold(singlechannels[1], saturation1, (double)ul_data[1]-90, 255, CV_THRESH_BINARY);
+        cv::threshold(singlechannels[1], saturation2, (double)ul_data[1]+90, 255, CV_THRESH_BINARY_INV);
+        cv::threshold(singlechannels[2], value1, (double)ul_data[2]-90, 255, CV_THRESH_BINARY);
+        cv::threshold(singlechannels[2], value2, (double)ul_data[2]+90, 255, CV_THRESH_BINARY_INV);
         cv::bitwise_and(hue1, hue2, hue);
         cv::bitwise_and(saturation1, saturation2, saturation);
         cv::bitwise_and(value1, value2, value);
         cv::bitwise_and(hue, saturation, out1);
         cv::bitwise_and(out1, value, ul_bin_img);
         
-        cv::threshold(singlechannels[0], hue1, (double)ur_data[0]-5, 255, CV_THRESH_BINARY);
-        cv::threshold(singlechannels[0], hue2, (double)ur_data[0]+5, 255, CV_THRESH_BINARY_INV);
-        cv::threshold(singlechannels[1], saturation1, (double)ur_data[1]-75, 255, CV_THRESH_BINARY);
-        cv::threshold(singlechannels[1], saturation2, (double)ur_data[1]+75, 255, CV_THRESH_BINARY_INV);
-        cv::threshold(singlechannels[2], value1, (double)ur_data[2]-75, 255, CV_THRESH_BINARY);
-        cv::threshold(singlechannels[2], value2, (double)ur_data[2]+75, 255, CV_THRESH_BINARY_INV);
+        cv::threshold(singlechannels[0], hue1, (double)ur_data[0]-8, 255, CV_THRESH_BINARY);
+        cv::threshold(singlechannels[0], hue2, (double)ur_data[0]+8, 255, CV_THRESH_BINARY_INV);
+        cv::threshold(singlechannels[1], saturation1, (double)ur_data[1]-90, 255, CV_THRESH_BINARY);
+        cv::threshold(singlechannels[1], saturation2, (double)ur_data[1]+90, 255, CV_THRESH_BINARY_INV);
+        cv::threshold(singlechannels[2], value1, (double)ur_data[2]-90, 255, CV_THRESH_BINARY);
+        cv::threshold(singlechannels[2], value2, (double)ur_data[2]+90, 255, CV_THRESH_BINARY_INV);
         cv::bitwise_and(hue1, hue2, hue);
         cv::bitwise_and(saturation1, saturation2, saturation);
         cv::bitwise_and(value1, value2, value);
         cv::bitwise_and(hue, saturation, out1);
         cv::bitwise_and(out1, value, ur_bin_img);
         
-        cv::threshold(singlechannels[0], hue1, (double)ll_data[0]-5, 255, CV_THRESH_BINARY);
-        cv::threshold(singlechannels[0], hue2, (double)ll_data[0]+5, 255, CV_THRESH_BINARY_INV);
-        cv::threshold(singlechannels[1], saturation1, (double)ll_data[1]-75, 255, CV_THRESH_BINARY);
-        cv::threshold(singlechannels[1], saturation2, (double)ll_data[1]+75, 255, CV_THRESH_BINARY_INV);
-        cv::threshold(singlechannels[2], value1, (double)ll_data[2]-75, 255, CV_THRESH_BINARY);
-        cv::threshold(singlechannels[2], value2, (double)ll_data[2]+75, 255, CV_THRESH_BINARY_INV);
+        cv::threshold(singlechannels[0], hue1, (double)ll_data[0]-8, 255, CV_THRESH_BINARY);
+        cv::threshold(singlechannels[0], hue2, (double)ll_data[0]+8, 255, CV_THRESH_BINARY_INV);
+        cv::threshold(singlechannels[1], saturation1, (double)ll_data[1]-90, 255, CV_THRESH_BINARY);
+        cv::threshold(singlechannels[1], saturation2, (double)ll_data[1]+90, 255, CV_THRESH_BINARY_INV);
+        cv::threshold(singlechannels[2], value1, (double)ll_data[2]-90, 255, CV_THRESH_BINARY);
+        cv::threshold(singlechannels[2], value2, (double)ll_data[2]+90, 255, CV_THRESH_BINARY_INV);
         cv::bitwise_and(hue1, hue2, hue);
         cv::bitwise_and(saturation1, saturation2, saturation);
         cv::bitwise_and(value1, value2, value);
         cv::bitwise_and(hue, saturation, out1);
         cv::bitwise_and(out1, value, ll_bin_img);
         
-        cv::threshold(singlechannels[0], hue1, (double)lr_data[0]-5, 255, CV_THRESH_BINARY);
-        cv::threshold(singlechannels[0], hue2, (double)lr_data[0]+5, 255, CV_THRESH_BINARY_INV);
-        cv::threshold(singlechannels[1], saturation1, (double)lr_data[1]-75, 255, CV_THRESH_BINARY);
-        cv::threshold(singlechannels[1], saturation2, (double)lr_data[1]+75, 255, CV_THRESH_BINARY_INV);
-        cv::threshold(singlechannels[2], value1, (double)lr_data[2]-75, 255, CV_THRESH_BINARY);
-        cv::threshold(singlechannels[2], value2, (double)lr_data[2]+75, 255, CV_THRESH_BINARY_INV);
+        cv::threshold(singlechannels[0], hue1, (double)lr_data[0]-8, 255, CV_THRESH_BINARY);
+        cv::threshold(singlechannels[0], hue2, (double)lr_data[0]+8, 255, CV_THRESH_BINARY_INV);
+        cv::threshold(singlechannels[1], saturation1, (double)lr_data[1]-90, 255, CV_THRESH_BINARY);
+        cv::threshold(singlechannels[1], saturation2, (double)lr_data[1]+90, 255, CV_THRESH_BINARY_INV);
+        cv::threshold(singlechannels[2], value1, (double)lr_data[2]-90, 255, CV_THRESH_BINARY);
+        cv::threshold(singlechannels[2], value2, (double)lr_data[2]+90, 255, CV_THRESH_BINARY_INV);
         cv::bitwise_and(hue1, hue2, hue);
         cv::bitwise_and(saturation1, saturation2, saturation);
         cv::bitwise_and(value1, value2, value);
@@ -193,6 +219,7 @@ bool Converter::getRect(){
             ul_bin_img.copyTo(pointed_image);
             cv::circle(pointed_image, ul_pos, 5, cv::Scalar(200,200,200), -1, CV_AA);
             cv::circle(pointed_image, ul_pos, 3, cv::Scalar(ul_data[0],ul_data[1],ul_data[2]),-1,CV_AA);
+            cv::resize(pointed_image, pointed_image, cv::Size(640,480));
             cv::imshow("3DS Movie Converter Debug Window", pointed_image);
             cv::waitKey(1);
         }
@@ -202,6 +229,7 @@ bool Converter::getRect(){
             ur_bin_img.copyTo(pointed_image);
             cv::circle(pointed_image, ur_pos, 5, cv::Scalar(200,200,200), -1, CV_AA);
             cv::circle(pointed_image, ur_pos, 3, cv::Scalar(ur_data[0],ur_data[1],ur_data[2]),-1,CV_AA);
+            cv::resize(pointed_image, pointed_image, cv::Size(640,480));
             cv::imshow("3DS Movie Converter Debug Window", pointed_image);
             cv::waitKey(1);
         }
@@ -211,6 +239,7 @@ bool Converter::getRect(){
             ll_bin_img.copyTo(pointed_image);
             cv::circle(pointed_image, ll_pos, 5, cv::Scalar(200,200,200), -1, CV_AA);
             cv::circle(pointed_image, ll_pos, 3, cv::Scalar(ll_data[0],ll_data[1],ll_data[2]),-1,CV_AA);
+            cv::resize(pointed_image, pointed_image, cv::Size(640,480));
             cv::imshow("3DS Movie Converter Debug Window", pointed_image);
             cv::waitKey(1);
         }
@@ -220,6 +249,7 @@ bool Converter::getRect(){
             lr_bin_img.copyTo(pointed_image);
             cv::circle(pointed_image, lr_pos, 5, cv::Scalar(200,200,200), -1, CV_AA);
             cv::circle(pointed_image, lr_pos, 3, cv::Scalar(lr_data[0],lr_data[1],lr_data[2]),-1,CV_AA);
+            cv::resize(pointed_image, pointed_image, cv::Size(640,480));
             cv::imshow("3DS Movie Converter Debug Window", pointed_image);
             cv::waitKey(1);
         }
@@ -251,7 +281,7 @@ bool Converter::getRect(){
                 average_y = ave_y;
             }
         }
-        ul_pos = cv::Point2f(ul_pos.x * 0.7 + average_x * 0.3,ul_pos.y *0.7 + average_y*0.3);
+        ul_pos = cv::Point2f(ul_pos.x * 0.5 + average_x * 0.5,ul_pos.y *0.5 + average_y*0.5);
         
         cv::morphologyEx(ur_bin_img, ur_mol_img, CV_MOP_OPEN, element);
         std::vector<std::vector<cv::Point> > ur_contours;
@@ -277,7 +307,7 @@ bool Converter::getRect(){
                 average_y = ave_y;
             }
         }
-        ur_pos = cv::Point2f(ur_pos.x * 0.7 + average_x * 0.3,ur_pos.y *0.7 + average_y*0.3);
+        ur_pos = cv::Point2f(ur_pos.x * 0.5 + average_x * 0.5,ur_pos.y *0.5 + average_y*0.5);
         
         cv::morphologyEx(ll_bin_img, ll_mol_img, CV_MOP_OPEN, element);
         std::vector<std::vector<cv::Point> > ll_contours;
@@ -303,7 +333,7 @@ bool Converter::getRect(){
                 average_y = ave_y;
             }
         }
-        ll_pos = cv::Point2f(ll_pos.x * 0.7 + average_x * 0.3,ll_pos.y *0.7 + average_y*0.3);
+        ll_pos = cv::Point2f(ll_pos.x * 0.5 + average_x * 0.5,ll_pos.y *0.5 + average_y*0.5);
         
         cv::morphologyEx(lr_bin_img, lr_mol_img, CV_MOP_OPEN, element);
         std::vector<std::vector<cv::Point> > lr_contours;
@@ -329,13 +359,14 @@ bool Converter::getRect(){
                 average_y = ave_y;
             }
         }
-        lr_pos = cv::Point2f(lr_pos.x * 0.7 + average_x * 0.3,lr_pos.y *0.7 + average_y*0.3);
+        lr_pos = cv::Point2f(lr_pos.x * 0.5 + average_x * 0.5,lr_pos.y *0.5 + average_y*0.5);
     
         if(debugging && debug_mode == 6){
             cv::Mat pointed_image;
             ul_mol_img.copyTo(pointed_image);
             cv::circle(pointed_image, ul_pos, 5, cv::Scalar(200,200,200), -1, CV_AA);
             cv::circle(pointed_image, ul_pos, 3, cv::Scalar(ul_data[0],ul_data[1],ul_data[2]),-1,CV_AA);
+            cv::resize(pointed_image, pointed_image, cv::Size(640,480));
             cv::imshow("3DS Movie Converter Debug Window", pointed_image);
             cv::waitKey(1);
         }
@@ -345,6 +376,7 @@ bool Converter::getRect(){
             ul_mol_img.copyTo(pointed_image);
             cv::circle(pointed_image, ur_pos, 5, cv::Scalar(200,200,200), -1, CV_AA);
             cv::circle(pointed_image, ur_pos, 3, cv::Scalar(ur_data[0],ur_data[1],ur_data[2]),-1,CV_AA);
+            cv::resize(pointed_image, pointed_image, cv::Size(640,480));
             cv::imshow("3DS Movie Converter Debug Window", pointed_image);
             cv::waitKey(1);
         }
@@ -354,6 +386,7 @@ bool Converter::getRect(){
             ll_mol_img.copyTo(pointed_image);
             cv::circle(pointed_image, ll_pos, 5, cv::Scalar(200,200,200), -1, CV_AA);
             cv::circle(pointed_image, ll_pos, 3, cv::Scalar(ll_data[0],ll_data[1],ll_data[2]),-1,CV_AA);
+            cv::resize(pointed_image, pointed_image, cv::Size(640,480));
             cv::imshow("3DS Movie Converter Debug Window", pointed_image);
             cv::waitKey(1);
         }
@@ -363,6 +396,7 @@ bool Converter::getRect(){
             lr_mol_img.copyTo(pointed_image);
             cv::circle(pointed_image, lr_pos, 5, cv::Scalar(200,200,200), -1, CV_AA);
             cv::circle(pointed_image, lr_pos, 3, cv::Scalar(lr_data[0],lr_data[1],lr_data[2]),-1,CV_AA);
+            cv::resize(pointed_image, pointed_image, cv::Size(640,480));
             cv::imshow("3DS Movie Converter Debug Window", pointed_image);
             cv::waitKey(1);
         }
@@ -381,6 +415,7 @@ bool Converter::getRect(){
             cv::circle(pointed_image, lr_pos, 5, cv::Scalar(200,200,200), -1, CV_AA);
             cv::circle(pointed_image, lr_pos, 3, cv::Scalar(lr_data[0],lr_data[1],lr_data[2]),-1,CV_AA);
             cv::cvtColor(pointed_image, draw_image, CV_HSV2RGB);
+            cv::resize(draw_image, draw_image, cv::Size(640,480));
             cv::imshow("3DS Movie Converter Debug Window", draw_image);
             cv::waitKey(1);
         }
@@ -392,7 +427,7 @@ bool Converter::getRect(){
         input_pos.push_back(lr_pos);
         
         cv::Mat transform_matrix = cv::getPerspectiveTransform(input_pos, output_pos);
-        cv::warpPerspective(frame_image, rect_image, transform_matrix, cv::Size(output_width, output_height));
+        cv::warpPerspective(frame_src, rect_image, transform_matrix, cv::Size(output_width, output_height));
         
         if(debugging && debug_mode == -1){
             cv::Mat pointed_image;
@@ -421,6 +456,12 @@ void Converter::addReviseFrame(int frame, double ul_x, double ul_y, double ur_x,
     points.push_back(cv::Point2f(ur_x,ur_y));
     points.push_back(cv::Point2f(ll_x,ll_y));
     points.push_back(cv::Point2f(lr_x,lr_y));
+    for(int i = 0;i<revise_frames.size();i++){
+        if (revise_frames[i] == frame){
+            revise_points[i] = points;
+            return;
+        }
+    }
     revise_points.push_back(points);
     revise_frames.push_back(frame);
 };
@@ -430,7 +471,7 @@ bool Converter::converte(){
         return false;
     }
     writer = cv::VideoWriter();
-    writer.open(output_file, CV_FOURCC_DEFAULT, capture.get(CV_CAP_PROP_FPS), cv::Size(output_width,output_height));
+    writer.open(output_file, CV_FOURCC('a','v','c','1'), capture.get(CV_CAP_PROP_FPS), cv::Size(output_width,output_height));
     std::cout << "initialize video writer => fps:" << capture.get(CV_CAP_PROP_FPS) << ", size:("<<output_width << "," << output_height << ")"<<std::endl;
     if(writer.isOpened() != true){
         std::cout << "can't open file to write video" << std::endl;
@@ -461,6 +502,47 @@ void Converter::writeImage(){
     if(writer.isOpened()){
         writer.write(rect_image);
         double rate = frame * 100.0 / capture.get(CV_CAP_PROP_FRAME_COUNT);
-        std::cout << rate << "% writen" << std::endl;
+        std::cout << rate << "% frame:"<<frame<<"writen" << std::endl;
     }
 };
+bool Converter::previewAtFrame(int frame){
+    bool ok = loadFrameImageAtFrame(frame);
+    if(!ok){
+        return false;
+    }
+    for(int i = 0;i<revise_frames.size();i++){
+        if(revise_frames[i] == frame){
+            for(int j = 0;j<4;j++){
+                loadColorDataAtPos(revise_points[i][j].x, revise_points[i][j].y);
+                setColorAs(j);
+            }
+        }
+    }
+    getRect();
+    return true;
+}
+void Converter::previewInputPoints(double ul_x,double ul_y,double ur_x,double ur_y,double ll_x,double ll_y,double lr_x,double lr_y){
+    in_ul = cv::Point2f(capture.get(CV_CAP_PROP_FRAME_WIDTH)*ul_x,capture.get(CV_CAP_PROP_FRAME_HEIGHT)*ul_y);
+    in_ur = cv::Point2f(capture.get(CV_CAP_PROP_FRAME_WIDTH)*ur_x,capture.get(CV_CAP_PROP_FRAME_HEIGHT)*ur_y);
+    in_ll = cv::Point2f(capture.get(CV_CAP_PROP_FRAME_WIDTH)*ll_x,capture.get(CV_CAP_PROP_FRAME_HEIGHT)*ll_y);
+    in_lr = cv::Point2f(capture.get(CV_CAP_PROP_FRAME_WIDTH)*lr_x,capture.get(CV_CAP_PROP_FRAME_HEIGHT)*lr_y);
+};
+
+BOOST_PYTHON_MODULE(movieconverter3ds)
+{
+    using namespace boost::python;
+    class_<Converter>("Converter",init<>())
+    .def("doDebug", &Converter::doDebug)
+    .def("addReviseFrame",&Converter::addReviseFrame)
+    .def("loadFile",&Converter::loadFile)
+    .def("setOutputFilePath",&Converter::setOutputFilePath)
+    .def("setOutputRectSize",&Converter::setOutputRectSize)
+    .def("initialize",&Converter::initialize)
+    .def("loadFrameImageAtFrame",&Converter::loadFrameImageAtFrame)
+    .def("loadColorDataAtPos",&Converter::loadColorDataAtPos)
+    .def("setColorAs",&Converter::setColorAs)
+    .def("converte",&Converter::converte)
+    .def("getRect",&Converter::getRect)
+    .def("previewAtFrame",&Converter::previewAtFrame)
+    .def("previewInputPoints",&Converter::previewInputPoints);
+}
